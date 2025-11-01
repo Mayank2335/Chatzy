@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "Server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "Server.js"
+    }
+  ],
+  "env": {
+    "MONGODB_URI": "your-mongodb-atlas-connection-string",
+    "PORT": "8080",
+    "NODE_ENV": "production"
+  }
+}

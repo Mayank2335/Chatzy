@@ -1,0 +1,60 @@
+:root {
+  --primary-dark: #111b21;
+  --primary-light: #202c33;
+  --message-out: #005c4b;
+  --message-in: #202c33;
+  --chat-bg: #0b141a;
+}
+
+.wa-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.wa-scrollbar::-webkit-scrollbar-track {
+  background: var(--primary-dark);
+}
+
+.wa-scrollbar::-webkit-scrollbar-thumb {
+  background: #374045;
+  border-radius: 3px;
+}
+
+.message-in {
+  background-color: var(--message-in);
+}
+
+.message-out {
+  background-color: var(--message-out);
+}
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  column-gap: 2px;
+  padding: 4px 8px;
+}
+
+.typing-indicator span {
+  width: 4px;
+  height: 4px;
+  background-color: #6b7280;
+  border-radius: 50%;
+  animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
