@@ -2,12 +2,7 @@ import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import './index.css';
 
-const socket = io(import.meta.env.VITE_SOCKET_URL || "http://localhost:5000", {
-  transports: ["websocket", "polling"],
-  reconnection: true,
-  reconnectionDelay: 1000,
-  reconnectionAttempts: 5
-});
+const socket = io("http://localhost:5000");
 
 function App() {
   const [username, setUsername] = useState("");
@@ -32,24 +27,18 @@ function App() {
   }, [isDark]);
 
   useEffect(() => {
-    const handleReceiveMessage = (msg) => setMessages((prev) => [...prev, msg]);
-    const handleUserJoined = (msg) => setMessages((prev) => [...prev, { system: true, text: msg }]);
-    const handleUserLeft = (msg) => setMessages((prev) => [...prev, { system: true, text: msg }]);
-    const handleShowTyping = (msg) => setTyping(msg);
-    const handleHideTyping = () => setTyping("");
-
-    socket.on("receiveMessage", handleReceiveMessage);
-    socket.on("userJoined", handleUserJoined);
-    socket.on("userLeft", handleUserLeft);
-    socket.on("showTyping", handleShowTyping);
-    socket.on("hideTyping", handleHideTyping);
+    socket.on("receiveMessage", (msg) => setMessages((prev) => [...prev, msg]));
+    socket.on("userJoined", (msg) => setMessages((prev) => [...prev, { system: true, text: msg }]));
+    socket.on("userLeft", (msg) => setMessages((prev) => [...prev, { system: true, text: msg }]));
+    socket.on("showTyping", (msg) => setTyping(msg));
+    socket.on("hideTyping", () => setTyping(""));
 
     return () => {
-      socket.off("receiveMessage", handleReceiveMessage);
-      socket.off("userJoined", handleUserJoined);
-      socket.off("userLeft", handleUserLeft);
-      socket.off("showTyping", handleShowTyping);
-      socket.off("hideTyping", handleHideTyping);
+      socket.off("receiveMessage");
+      socket.off("userJoined");
+      socket.off("userLeft");
+      socket.off("showTyping");
+      socket.off("hideTyping");
     };
   }, []);
 
@@ -76,35 +65,36 @@ function App() {
     }
   };
 
-  const renderLoginForm = () => (
-    <div className="flex items-center justify-center h-screen transition-all duration-500 bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white">
-      <div className="p-8 rounded-2xl shadow-2xl bg-white dark:bg-gray-800 text-center w-96">
-        <h1 className="text-3xl font-bold mb-6">💬 Chill Chat</h1>
-        <input
-          type="text"
-          placeholder="Enter your name..."
-          value={tempName}
-          onChange={(e) => setTempName(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && joinChat()}
-          className="border rounded-lg px-3 py-2 w-full text-center mb-4 dark:bg-gray-700 dark:text-white"
-        />
-        <button
-          onClick={joinChat}
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg mb-3"
-        >
-          Join Chat
-        </button>
-        <button
-          onClick={toggleTheme}
-          className="text-sm text-blue-400 hover:underline"
-        >
-          {isDark ? "Switch to Light Mode ☀️" : "Switch to Dark Mode 🌙"}
-        </button>
+  if (!username) {
+    return (
+      <div className="flex items-center justify-center h-screen transition-all duration-500 bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white">
+        <div className="p-8 rounded-2xl shadow-2xl bg-white dark:bg-gray-800 text-center w-96">
+          <h1 className="text-3xl font-bold mb-6">💬 Chill Chat</h1>
+          <input
+            type="text"
+            placeholder="Enter your name..."
+            value={tempName}
+            onChange={(e) => setTempName(e.target.value)}
+            className="border rounded-lg px-3 py-2 w-full text-center mb-4 dark:bg-gray-700 dark:text-white"
+          />
+          <button
+            onClick={joinChat}
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg mb-3"
+          >
+            Join Chat
+          </button>
+          <button
+            onClick={toggleTheme}
+            className="text-sm text-blue-400 hover:underline"
+          >
+            {isDark ? "Switch to Light Mode ☀️" : "Switch to Dark Mode 🌙"}
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  const renderChatRoom = () => (
+  return (
     <div className="flex flex-col h-screen transition-all duration-500 bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white">
       <div className="p-4 bg-white dark:bg-gray-800 shadow-md">
         <div className="flex justify-between items-center">
@@ -170,8 +160,6 @@ function App() {
       </div>
     </div>
   );
-
-  return username ? renderChatRoom() : renderLoginForm();
 }
 
 export default App;

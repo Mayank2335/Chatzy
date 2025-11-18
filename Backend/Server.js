@@ -1,10 +1,10 @@
-import express from "express";
-import http from "http";
-import { Server } from "socket.io";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import cors from "cors";
-import Message from "./models/Message.js";
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import Message from './models/Message.js';
 
 dotenv.config();
 
@@ -17,20 +17,30 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 const io = new Server(server, {
   cors: {
-    origin: FRONTEND_URL,
+    origin: FRONTEND_URL.split(','),
     methods: ["GET", "POST"],
+    credentials: true
   },
 });
 
-app.use(cors());
+app.use(cors({
+  origin: FRONTEND_URL.split(','),
+  credentials: true
+}));
 app.use(express.json());
+
+// Health check endpoints
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'Chatzy Backend Server is running' });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // ✅ Connect to MongoDB
 mongoose
-  .connect(process.env.MONGO_URL, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(MONGODB_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch((err) => console.log("❌ MongoDB Error:", err));
 

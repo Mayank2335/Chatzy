@@ -1,15 +1,16 @@
 import React, { useEffect, useState, useRef } from "react";
 import socket from "../src/socket";
-import DarkModeToggle from "./DarkModeToggle";
-import { EmojiHappyIcon, PaperClipIcon, MicrophoneIcon, SearchIcon, DotsVerticalIcon } from '@heroicons/react/outline';
-import EmojiPicker from 'emoji-picker-react';
+import ChatSidebar from "./ChatSidebar";
+import ChatHeader from "./ChatHeader";
+import MessageBubble from "./MessageBubble";
 
 function Chat({ isDark, onToggleTheme }) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [typingStatus, setTypingStatus] = useState("");
-  const [activeChatId, setActiveChatId] = useState(null);
+  const [selectedChat, setSelectedChat] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const [showEmoji, setShowEmoji] = useState(false);
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
   const socketInitialized = useRef(false);
@@ -94,21 +95,15 @@ function Chat({ isDark, onToggleTheme }) {
   };
 
   return (
-    <div className="flex h-screen bg-[#111b21] dark:bg-[#111b21]">
+    <div className="flex h-screen overflow-hidden bg-[#111b21]">
       {/* Left Sidebar */}
-      <div className="w-[400px] border-r border-gray-700 flex flex-col">
-        {/* Header */}
-        <div className="h-16 bg-[#202c33] flex items-center justify-between px-4">
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center text-white">
-              {/* Profile Image Placeholder */}
-              U1
-            </div>
-          </div>
-          <div className="flex items-center space-x-3 text-gray-400">
-            <DarkModeToggle isDark={isDark} onToggle={onToggleTheme} />
-          </div>
-        </div>
+      <ChatSidebar
+        onlineUsers={onlineUsers}
+        selectedChat={selectedChat}
+        onSelectChat={setSelectedChat}
+        isDark={isDark}
+        onToggleTheme={onToggleTheme}
+      />
         
         {/* Search Bar */}
         <div className="p-2 bg-[#111b21]">
