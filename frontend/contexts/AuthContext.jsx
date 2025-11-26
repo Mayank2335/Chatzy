@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
@@ -7,7 +9,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -22,16 +24,17 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', data.token);
         return { success: true };
       } else {
-        return { success: false, error: data.message };
+        return { success: false, error: data.message || 'Login failed' };
       }
     } catch (error) {
-      return { success: false, error: 'Connection failed' };
+      console.error('Login error:', error);
+      return { success: false, error: 'Failed to fetch - Cannot connect to server' };
     }
   };
 
   const register = async (userData) => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -46,10 +49,11 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', data.token);
         return { success: true };
       } else {
-        return { success: false, error: data.message };
+        return { success: false, error: data.message || 'Registration failed' };
       }
     } catch (error) {
-      return { success: false, error: 'Connection failed' };
+      console.error('Registration error:', error);
+      return { success: false, error: 'Failed to fetch - Cannot connect to server' };
     }
   };
 

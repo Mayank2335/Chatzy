@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import Message from './models/Message.js';
+import authRoutes from './Routes/authRoutes.js';
 
 dotenv.config();
 
@@ -57,6 +58,9 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Auth routes
+app.use('/api/auth', authRoutes);
 
 // ✅ Connect to MongoDB
 mongoose
