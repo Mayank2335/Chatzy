@@ -9,14 +9,6 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          socket: ['socket.io-client']
-        }
-      }
-    }
+    sourcemap: false
   }
 })
