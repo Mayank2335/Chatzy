@@ -87,8 +87,7 @@ npm run dev
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions on:
 - Render
-- Vercel
-- Railway
+- https://chatzee23.netlify.app/
 - MongoDB Atlas setup
 
 ## 📝 Environment Variables
