@@ -1,32 +1,35 @@
 import express from "express";
 import User from "../models/User.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Signup
-router.post("/signup", async (req, res) => {
+router.use(authenticateToken);
+
+router.get("/", async (req, res) => {
   try {
-    const user = new User(req.body);
-    await user.save();
-    res.status(201).json({ message: "User created" });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+    const query = req.query.q;
+    const filter = {
+      _id: { $ne: req.user.userId },
+    };
+
+    if (query) {
+      filter.$or = [
+        { username: { $regex: query, $options: "i" } },
+        { email: { $regex: query, $options: "i" } },
+      ];
+    }
+
+    const users = await User.find(filter)
+      .select("-password")
+      .sort({ username: 1 })
+      .limit(25);
+
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to fetch users" });
   }
-});
-
-// Login
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  const user = await User.findOne({ email });
-  if (!user) return res.status(400).json({ error: "User not found" });
-
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
-
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
-  res.json({ token, user });
 });
 
 export default router;

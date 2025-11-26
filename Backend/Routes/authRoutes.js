@@ -1,113 +1,82 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import express from "express";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
 const router = express.Router();
 
-// Register route
-router.post('/register', async (req, res) => {
+const createToken = (userId) =>
+  jwt.sign({ userId }, process.env.JWT_SECRET || "super-secret-key", {
+    expiresIn: "7d",
+  });
+
+router.post("/register", async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    // Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Create new user
-    user = new User({
-      username,
-      email,
-      password,
-    });
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.status(400).json({ message: "User already exists" });
+    }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    const user = await User.create({ username, email, password });
+    const token = createToken(user._id);
 
-    // Save user
-    await user.save();
-
-    // Create token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
-
-    res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-      },
-    });
+    res.status(201).json({ token, user: user.toJSON() });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// Login route
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Check if user exists
     const user = await User.findOne({ email });
+
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Validate password
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Create token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-      },
-    });
+    const token = createToken(user._id);
+    res.json({ token, user: user.toJSON() });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// Get current user route
-router.get('/me', async (req, res) => {
+router.get("/me", async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
+
     if (!token) {
-      return res.status(401).json({ message: 'No token provided' });
+      return res.status(401).json({ message: "No token provided" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const user = await User.findById(decoded.userId).select('-password');
-    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "super-secret-key");
+    const user = await User.findById(decoded.userId).select("-password");
+
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     res.json(user);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-module.exports = router;
+export default router;

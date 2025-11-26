@@ -15,18 +15,38 @@ const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/chat-a
 const PORT = process.env.PORT || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
-const io = new Server(server, {
-  cors: {
-    origin: FRONTEND_URL.split(','),
-    methods: ["GET", "POST"],
-    credentials: true
+// CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = FRONTEND_URL.split(',');
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin.includes('*')) {
+        // Handle wildcard domains like *.netlify.app
+        const pattern = allowedOrigin.replace(/\*/g, '.*');
+        return new RegExp(pattern).test(origin);
+      }
+      return allowedOrigin === origin;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all in production, you can change this
+    }
   },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+const io = new Server(server, {
+  cors: corsOptions
 });
 
-app.use(cors({
-  origin: FRONTEND_URL.split(','),
-  credentials: true
-}));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health check endpoints

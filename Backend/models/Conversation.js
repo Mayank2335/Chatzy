@@ -1,0 +1,28 @@
+import mongoose from "mongoose";
+
+const conversationSchema = new mongoose.Schema(
+  {
+    participants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
+    ],
+    lastMessage: {
+      text: String,
+      mediaType: { type: String, enum: ["text", "image"] },
+      mediaUrl: String,
+      sender: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      createdAt: Date,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+conversationSchema.index({ participants: 1 });
+
+export default mongoose.model("Conversation", conversationSchema);
+
