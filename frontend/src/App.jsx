@@ -38,7 +38,17 @@ function App() {
   const remoteVideoRef = useRef(null);
   const peerRef = useRef(null);
   const myStreamRef = useRef(null);
+  const remoteStreamRef = useRef(null);
+  const ringIntervalRef = useRef(null);
   const messagesEndRef = useRef(null);
+
+  const ICE_SERVERS = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+    ]
+  };
 
   // Check for existing session on mount
   useEffect(() => {
@@ -100,7 +110,7 @@ function App() {
 
     socket.on("callAccepted", ({ signal }) => {
       peerRef.current?.signal(signal);
-      setCallState('in-call');
+      // 'in-call' state is set by the peer 'stream' event, not here
     });
 
     socket.on("iceCandidate", ({ candidate }) => {
@@ -240,6 +250,7 @@ function App() {
       peerRef.current.destroy();
       peerRef.current = null;
     }
+    remoteStreamRef.current = null;
     setCallState('idle');
     setIncomingCall(null);
     setIsMuted(false);
@@ -257,10 +268,9 @@ function App() {
     }
     try {
       myStreamRef.current = stream;
-      if (myVideoRef.current) myVideoRef.current.srcObject = stream;
       setCallState('calling');
 
-      const peer = new SimplePeer({ initiator: true, trickle: false, stream });
+      const peer = new SimplePeer({ initiator: true, trickle: false, stream, config: ICE_SERVERS });
       peerRef.current = peer;
 
       peer.on('signal', signal => {
@@ -268,8 +278,8 @@ function App() {
       });
 
       peer.on('stream', remoteStream => {
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-        setCallState('in-call');
+        remoteStreamRef.current = remoteStream;
+        setCallState('in-call'); // triggers useEffect to set srcObjects after render
       });
 
       peer.on('error', (err) => { console.error('Peer error:', err); endCall(true); });
@@ -293,9 +303,8 @@ function App() {
     }
     try {
       myStreamRef.current = stream;
-      if (myVideoRef.current) myVideoRef.current.srcObject = stream;
 
-      const peer = new SimplePeer({ initiator: false, trickle: false, stream });
+      const peer = new SimplePeer({ initiator: false, trickle: false, stream, config: ICE_SERVERS });
       peerRef.current = peer;
 
       peer.on('signal', signal => {
@@ -303,8 +312,8 @@ function App() {
       });
 
       peer.on('stream', remoteStream => {
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-        setCallState('in-call');
+        remoteStreamRef.current = remoteStream;
+        setCallState('in-call'); // triggers useEffect to set srcObjects after render
       });
 
       peer.on('error', (err) => { console.error('Peer error:', err); endCall(true); });
@@ -332,6 +341,60 @@ function App() {
       setIsCameraOff(prev => !prev);
     }
   };
+
+  const playRingTone = () => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const beep = () => {
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 520;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.4, ctx.currentTime + 0.3);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.5);
+        setTimeout(() => ctx.close(), 800);
+      } catch {}
+    };
+    beep();
+    ringIntervalRef.current = setInterval(beep, 1500);
+  };
+
+  const stopRingTone = () => {
+    if (ringIntervalRef.current) {
+      clearInterval(ringIntervalRef.current);
+      ringIntervalRef.current = null;
+    }
+  };
+
+  // Play/stop ringtone based on call state
+  useEffect(() => {
+    if (callState === 'incoming') {
+      playRingTone();
+    } else {
+      stopRingTone();
+    }
+    return () => stopRingTone();
+  }, [callState]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Set video srcObjects after the video elements are rendered
+  useEffect(() => {
+    if (callState === 'in-call') {
+      if (myVideoRef.current && myStreamRef.current) {
+        myVideoRef.current.srcObject = myStreamRef.current;
+      }
+      if (remoteVideoRef.current && remoteStreamRef.current) {
+        remoteVideoRef.current.srcObject = remoteStreamRef.current;
+      }
+    }
+  }, [callState]);
 
   // Auto-scroll messages
   useEffect(() => {
