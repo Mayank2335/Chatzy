@@ -9,6 +9,57 @@ const createToken = (userId) =>
     expiresIn: "7d",
   });
 
+// Google OAuth routes
+router.get("/google", (req, res) => {
+  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${process.env.FRONTEND_URL}/auth/callback&response_type=code&scope=email profile`;
+  res.redirect(googleAuthUrl);
+});
+
+router.post("/google/callback", async (req, res) => {
+  try {
+    const { code } = req.body;
+    
+    // Exchange code for tokens
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: `${process.env.FRONTEND_URL}/auth/callback`,
+        grant_type: 'authorization_code'
+      })
+    });
+    
+    const tokens = await tokenResponse.json();
+    
+    // Get user info
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
+    });
+    
+    const googleUser = await userInfoResponse.json();
+    
+    // Find or create user
+    let user = await User.findOne({ email: googleUser.email });
+    if (!user) {
+      user = await User.create({
+        email: googleUser.email,
+        username: googleUser.name || googleUser.email.split('@')[0],
+        password: Math.random().toString(36).slice(-12), // Random password
+        avatar: googleUser.picture
+      });
+    }
+    
+    const token = createToken(user._id);
+    res.json({ token, user: user.toJSON() });
+  } catch (error) {
+    console.error('Google OAuth error:', error);
+    res.status(500).json({ message: "Google authentication failed" });
+  }
+});
+
 router.post("/register", async (req, res) => {
   try {
     const { username, email, password } = req.body;

@@ -78,6 +78,15 @@ app.get("/api/messages", async (req, res) => {
   }
 });
 
+// ✅ Track connected users: socketId -> username
+const onlineUsersMap = new Map(); // socketId -> username
+const userSocketMap = new Map();  // username -> socketId
+
+function broadcastOnlineUsers() {
+  const users = Array.from(onlineUsersMap.values());
+  io.emit("onlineUsers", users);
+}
+
 // ✅ Socket.io logic
 io.on("connection", (socket) => {
   console.log("🟢 New client connected:", socket.id);
@@ -85,38 +94,55 @@ io.on("connection", (socket) => {
   // ✅ User joins the chat
   socket.on("joinChat", (username) => {
     socket.username = username;
+    onlineUsersMap.set(socket.id, username);
+    userSocketMap.set(username, socket.id);
     io.emit("userJoined", `${username} joined the chat`);
+    broadcastOnlineUsers();
   });
 
-  // ✅ Typing indicator logic
-  socket.on("typing", (username) => {
-    // accept username from client for reliability
-    const name = username || socket.username;
-    if (name) {
+  // ✅ Typing indicator — sent privately to the recipient
+  socket.on("typing", (data) => {
+    const name = typeof data === 'string' ? data : (data?.username || socket.username);
+    const to = typeof data === 'object' ? data?.to : null;
+    if (to) {
+      const targetSocketId = userSocketMap.get(to);
+      if (targetSocketId) io.to(targetSocketId).emit("showTyping", `${name} is typing...`);
+    } else {
       socket.broadcast.emit("showTyping", `${name} is typing...`);
     }
   });
 
-  socket.on("stopTyping", () => {
-    socket.broadcast.emit("hideTyping");
+  socket.on("stopTyping", (data) => {
+    const to = typeof data === 'object' ? data?.to : null;
+    if (to) {
+      const targetSocketId = userSocketMap.get(to);
+      if (targetSocketId) io.to(targetSocketId).emit("hideTyping");
+    } else {
+      socket.broadcast.emit("hideTyping");
+    }
   });
 
-  // ✅ Sending messages
+  // ✅ Sending messages — delivered only to the intended recipient
   socket.on("sendMessage", async (msg) => {
     if (!msg.user) msg.user = socket.username;
-    console.log(`📩 ${msg.user}: ${msg.text}`);
 
-    // Add message status
     const messageWithStatus = {
       ...msg,
       status: 'delivered',
       deliveredAt: new Date().toISOString()
     };
 
-    // Send to other clients
-    socket.broadcast.emit("receiveMessage", messageWithStatus);
-    
-    // Send delivery confirmation to sender
+    if (msg.to) {
+      // Private message: deliver only to the target user
+      const targetSocketId = userSocketMap.get(msg.to);
+      if (targetSocketId) {
+        io.to(targetSocketId).emit("receiveMessage", messageWithStatus);
+      }
+    } else {
+      // Fallback: broadcast (no recipient specified)
+      socket.broadcast.emit("receiveMessage", messageWithStatus);
+    }
+
     socket.emit("messageStatus", {
       messageId: msg.id,
       status: 'delivered',
@@ -124,11 +150,43 @@ io.on("connection", (socket) => {
     });
   });
 
+  // ✅ WebRTC Signaling — relay only, server never sees media
+  socket.on("callUser", ({ to, signal, from }) => {
+    const targetSocketId = userSocketMap.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("incomingCall", { signal, from });
+    }
+  });
+
+  socket.on("callAccepted", ({ to, signal }) => {
+    const targetSocketId = userSocketMap.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("callAccepted", { signal });
+    }
+  });
+
+  socket.on("iceCandidate", ({ to, candidate }) => {
+    const targetSocketId = userSocketMap.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("iceCandidate", { candidate });
+    }
+  });
+
+  socket.on("callEnded", ({ to }) => {
+    const targetSocketId = userSocketMap.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("callEnded");
+    }
+  });
+
   // ✅ Disconnect event
   socket.on("disconnect", () => {
     if (socket.username) {
       console.log(`👋 ${socket.username} left the chat`);
+      onlineUsersMap.delete(socket.id);
+      userSocketMap.delete(socket.username);
       io.emit("userLeft", `${socket.username} left the chat`);
+      broadcastOnlineUsers();
     }
   });
 });
