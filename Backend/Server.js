@@ -12,14 +12,14 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URL || "mongodb://127.0.0.1:27017/chat-app";
+const MONGODB_URL = process.env.MONGODB_URL || process.env.MONGO_URL || "mongodb://127.0.0.1:27017/chat-app";
 const PORT = process.env.PORT || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (like mobile apps or cURL requests)
     if (!origin) return callback(null, true);
     
     const allowedOrigins = FRONTEND_URL.split(',');
@@ -64,9 +64,12 @@ app.use('/api/auth', authRoutes);
 
 // ✅ Connect to MongoDB
 mongoose
-  .connect(MONGODB_URI)
+  .connect(MONGODB_URL)
   .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.log("❌ MongoDB Error:", err));
+  .catch((err) => {
+    console.error("❌ MongoDB Error:", err.message);
+    console.error("   Check your MONGO_URL in .env — cluster hostname may be wrong or IP not whitelisted in Atlas.");
+  });
 
 // ✅ Route to get all previous messages
 app.get("/api/messages", async (req, res) => {

@@ -50,7 +50,7 @@ npm install
 
 Create `.env` file in Backend folder:
 ```env
-MONGODB_URI=mongodb://127.0.0.1:27017/chat-app
+MONGODB_URL=mongodb://127.0.0.1:27017/chat-app
 MONGO_URL=mongodb://127.0.0.1:27017/chat-app
 PORT=5000
 FRONTEND_URL=http://localhost:5173
@@ -93,7 +93,7 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions on:
 ## 📝 Environment Variables
 
 ### Backend
-- `MONGODB_URI` - MongoDB connection string
+- `MONGODB_URL` - MongoDB connection string
 - `MONGO_URL` - MongoDB connection string (backup)
 - `PORT` - Server port (default: 5000)
 - `FRONTEND_URL` - Frontend URL for CORS

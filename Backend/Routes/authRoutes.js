@@ -11,8 +11,8 @@ const createToken = (userId) =>
 
 // Google OAuth routes
 router.get("/google", (req, res) => {
-  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${process.env.FRONTEND_URL}/auth/callback&response_type=code&scope=email profile`;
-  res.redirect(googleAuthUrl);
+  const googleAuthURL = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_URL=${process.env.FRONTEND_URL}/auth/callback&response_type=code&scope=email profile`;
+  res.redirect(googleAuthURL);
 });
 
 router.post("/google/callback", async (req, res) => {
@@ -27,7 +27,7 @@ router.post("/google/callback", async (req, res) => {
         code,
         client_id: process.env.GOOGLE_CLIENT_ID,
         client_secret: process.env.GOOGLE_CLIENT_SECRET,
-        redirect_uri: `${process.env.FRONTEND_URL}/auth/callback`,
+        redirect_URL: `${process.env.FRONTEND_URL}/auth/callback`,
         grant_type: 'authorization_code'
       })
     });
@@ -89,12 +89,12 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const token = createToken(user._id);

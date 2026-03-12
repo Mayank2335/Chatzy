@@ -13,7 +13,7 @@
     }
   ],
   "env": {
-    "MONGODB_URI": "your-mongodb-atlas-connection-string",
+    "MONGODB_URL": "your-mongodb-atlas-connection-string",
     "PORT": "8080",
     "NODE_ENV": "production"
   }

@@ -17,7 +17,7 @@ console.log('5. Create OAuth 2.0 Client ID');
 console.log('6. Add authorized origins:');
 console.log('   - http://localhost:5173');
 console.log('   - https://your-production-domain.com');
-console.log('7. Add authorized redirect URIs:');
+console.log('7. Add authorized redirect URLs:');
 console.log('   - http://localhost:5173/auth/google/callback');
 console.log('   - https://your-production-domain.com/auth/google/callback\n');
 

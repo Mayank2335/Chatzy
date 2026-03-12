@@ -2,11 +2,11 @@ import express from "express";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath } from "URL";
 import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
-const __filename = fileURLToPath(import.meta.url);
+const __filename = fileURLToPath(import.meta.URL);
 const __dirname = path.dirname(__filename);
 const uploadsDir = path.join(__dirname, "..", "uploads");
 
@@ -40,7 +40,7 @@ router.post("/image", authenticateToken, upload.single("image"), (req, res) => {
   }
 
   const filePath = `/uploads/${req.file.filename}`;
-  res.status(201).json({ url: filePath });
+  res.status(201).json({ URL: filePath });
 });
 
 export default router;

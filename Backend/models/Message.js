@@ -21,7 +21,7 @@ const messageSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    mediaUrl: {
+    mediaURL: {
       type: String,
     },
     mediaType: {

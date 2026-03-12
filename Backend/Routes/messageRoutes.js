@@ -9,9 +9,9 @@ router.use(authenticateToken);
 
 router.post("/", async (req, res) => {
   try {
-    const { conversationId, text, mediaUrl, mediaType = "text" } = req.body;
+    const { conversationId, text, mediaURL, mediaType = "text" } = req.body;
 
-    if (!conversationId || (!text && !mediaUrl)) {
+    if (!conversationId || (!text && !mediaURL)) {
       return res.status(400).json({ message: "Missing message content" });
     }
 
@@ -38,7 +38,7 @@ router.post("/", async (req, res) => {
       sender: req.user.userId,
       recipient: recipient?._id,
       text,
-      mediaUrl,
+      mediaURL,
       mediaType,
       status: "sent",
     });
@@ -50,7 +50,7 @@ router.post("/", async (req, res) => {
     conversation.lastMessage = {
       text: text || "Photo",
       mediaType,
-      mediaUrl,
+      mediaURL,
       sender: req.user.userId,
       createdAt: populatedMessage.createdAt,
     };

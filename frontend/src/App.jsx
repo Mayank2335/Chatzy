@@ -345,9 +345,9 @@ function App() {
       return;
     }
     
-    const redirectUri = `${window.location.origin}/auth/callback`;
-    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=email profile`;
-    window.location.href = googleAuthUrl;
+    const redirectURL = `${window.location.origin}/auth/callback`;
+    const googleAuthURL = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_URL=${redirectURL}&response_type=code&scope=email profile`;
+    window.location.href = googleAuthURL;
   };
 
   // Handle Google OAuth callback

@@ -10,7 +10,7 @@ const GoogleAuth = () => {
       try {
         await googleLogin(response.access_token);
       } catch (error) {
-        console.error('Error during Google login:', error);
+        console.error('Error dURLng Google login:', error);
       }
     },
     onError: () => console.error('Google Login Failed'),

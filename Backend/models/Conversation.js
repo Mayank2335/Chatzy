@@ -12,7 +12,7 @@ const conversationSchema = new mongoose.Schema(
     lastMessage: {
       text: String,
       mediaType: { type: String, enum: ["text", "image"] },
-      mediaUrl: String,
+      mediaURL: String,
       sender: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       createdAt: Date,
     },
