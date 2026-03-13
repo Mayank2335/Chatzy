@@ -40,6 +40,7 @@ function App() {
   const myStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const ringIntervalRef = useRef(null);
+  const ringAudioCtxRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const ICE_SERVERS = {
@@ -105,6 +106,7 @@ function App() {
     // Video call signaling listeners
     socket.on("incomingCall", ({ signal, from }) => {
       setIncomingCall({ signal, from });
+      setSelectedUser(from);
       setCallState('incoming');
     });
 
@@ -184,9 +186,35 @@ function App() {
         socket.off("userLeft");
         socket.off("showTyping");
         socket.off("hideTyping");
+        socket.off("onlineUsers");
+        socket.off("incomingCall");
+        socket.off("callAccepted");
+        socket.off("iceCandidate");
+        socket.off("callEnded");
       }
     };
   }, []);
+
+  const attachStreamToVideo = (videoEl, stream, muted = false) => {
+    if (!videoEl || !stream) return;
+    if (videoEl.srcObject !== stream) {
+      videoEl.srcObject = stream;
+    }
+    videoEl.muted = muted;
+    const playPromise = videoEl.play?.();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch((err) => {
+        console.warn('Video autoplay blocked:', err?.message || err);
+      });
+    }
+  };
+
+  const handleRemoteStream = (remoteStream) => {
+    if (!remoteStream) return;
+    remoteStreamRef.current = remoteStream;
+    setCallState('in-call');
+    attachStreamToVideo(remoteVideoRef.current, remoteStream, false);
+  };
 
   const handleSend = () => {
     if (message.trim() && socket && user && selectedUser) {
@@ -250,6 +278,12 @@ function App() {
       peerRef.current.destroy();
       peerRef.current = null;
     }
+    if (myVideoRef.current) {
+      myVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
     remoteStreamRef.current = null;
     setCallState('idle');
     setIncomingCall(null);
@@ -269,6 +303,7 @@ function App() {
     try {
       myStreamRef.current = stream;
       setCallState('calling');
+      attachStreamToVideo(myVideoRef.current, stream, true);
 
       const peer = new SimplePeer({ initiator: true, trickle: false, stream, config: ICE_SERVERS });
       peerRef.current = peer;
@@ -277,10 +312,8 @@ function App() {
         socket.emit("callUser", { to: selectedUser, signal, from: user.username });
       });
 
-      peer.on('stream', remoteStream => {
-        remoteStreamRef.current = remoteStream;
-        setCallState('in-call'); // triggers useEffect to set srcObjects after render
-      });
+      peer.on('stream', handleRemoteStream);
+      peer.on('track', (_track, remoteStream) => handleRemoteStream(remoteStream));
 
       peer.on('error', (err) => { console.error('Peer error:', err); endCall(true); });
       peer.on('close', () => endCall(false));
@@ -303,6 +336,8 @@ function App() {
     }
     try {
       myStreamRef.current = stream;
+      setSelectedUser(incomingCall.from);
+      attachStreamToVideo(myVideoRef.current, stream, true);
 
       const peer = new SimplePeer({ initiator: false, trickle: false, stream, config: ICE_SERVERS });
       peerRef.current = peer;
@@ -311,16 +346,13 @@ function App() {
         socket.emit("callAccepted", { to: incomingCall.from, signal });
       });
 
-      peer.on('stream', remoteStream => {
-        remoteStreamRef.current = remoteStream;
-        setCallState('in-call'); // triggers useEffect to set srcObjects after render
-      });
+      peer.on('stream', handleRemoteStream);
+      peer.on('track', (_track, remoteStream) => handleRemoteStream(remoteStream));
 
       peer.on('error', (err) => { console.error('Peer error:', err); endCall(true); });
       peer.on('close', () => endCall(false));
 
       peer.signal(incomingCall.signal);
-      setSelectedUser(incomingCall.from);
     } catch (err) {
       console.error('WebRTC setup error:', err);
       stream.getTracks().forEach(t => t.stop());
@@ -345,32 +377,46 @@ function App() {
   const playRingTone = () => {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
+
+    if (!ringAudioCtxRef.current || ringAudioCtxRef.current.state === 'closed') {
+      ringAudioCtxRef.current = new AudioContext();
+    }
+
+    const ctx = ringAudioCtxRef.current;
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
     const beep = () => {
       try {
-        const ctx = new AudioContext();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.frequency.value = 520;
+        osc.frequency.value = 700;
         osc.type = 'sine';
         gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.05);
-        gain.gain.setValueAtTime(0.4, ctx.currentTime + 0.3);
+        gain.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 0.04);
+        gain.gain.setValueAtTime(0.9, ctx.currentTime + 0.2);
         gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
         osc.start(ctx.currentTime);
         osc.stop(ctx.currentTime + 0.5);
-        setTimeout(() => ctx.close(), 800);
-      } catch {}
+      } catch {
+        // Ignore ringtone playback issues on unsupported browsers
+      }
     };
     beep();
-    ringIntervalRef.current = setInterval(beep, 1500);
+    ringIntervalRef.current = setInterval(beep, 1200);
   };
 
   const stopRingTone = () => {
     if (ringIntervalRef.current) {
       clearInterval(ringIntervalRef.current);
       ringIntervalRef.current = null;
+    }
+    if (ringAudioCtxRef.current && ringAudioCtxRef.current.state !== 'closed') {
+      ringAudioCtxRef.current.close().catch(() => {});
+      ringAudioCtxRef.current = null;
     }
   };
 
@@ -382,16 +428,16 @@ function App() {
       stopRingTone();
     }
     return () => stopRingTone();
-  }, [callState]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [callState]);
 
   // Set video srcObjects after the video elements are rendered
   useEffect(() => {
     if (callState === 'in-call') {
       if (myVideoRef.current && myStreamRef.current) {
-        myVideoRef.current.srcObject = myStreamRef.current;
+        attachStreamToVideo(myVideoRef.current, myStreamRef.current, true);
       }
       if (remoteVideoRef.current && remoteStreamRef.current) {
-        remoteVideoRef.current.srcObject = remoteStreamRef.current;
+        attachStreamToVideo(remoteVideoRef.current, remoteStreamRef.current, false);
       }
     }
   }, [callState]);
