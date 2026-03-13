@@ -84,12 +84,7 @@ npm run dev
 - Enter your username and start chatting!
 
 ## 📦 Deployment
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions on:
-- Render
-- https://chatzee23.netlify.app/
-- MongoDB Atlas setup
-
+https://chatzy23.netlify.app
 ## 📝 Environment Variables
 
 ### Backend
@@ -103,18 +98,6 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions on:
 - `VITE_API_URL` - Backend API URL
 - `VITE_SOCKET_URL` - Socket.io server URL
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is open source and available under the MIT License.
-
-## 👨‍💻 Author
-
-**Mayank2335**
-- GitHub: [@Mayank2335](https://github.com/Mayank2335)
 
 ## 🙏 Acknowledgments
 
@@ -123,6 +106,3 @@ This project is open source and available under the MIT License.
 - MongoDB for data persistence
 - Vite for blazing fast development
 
----
-
-Made with ❤️ by Mayank2335
