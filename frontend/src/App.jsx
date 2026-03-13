@@ -197,15 +197,40 @@ function App() {
 
   const attachStreamToVideo = (videoEl, stream, muted = false) => {
     if (!videoEl || !stream) return;
-    if (videoEl.srcObject !== stream) {
-      videoEl.srcObject = stream;
-    }
+    // Prevent redundant attachment of same stream
+    if (videoEl.srcObject === stream) return;
+    
     videoEl.muted = muted;
-    const playPromise = videoEl.play?.();
-    if (playPromise && typeof playPromise.catch === 'function') {
-      playPromise.catch((err) => {
-        console.warn('Video autoplay blocked:', err?.message || err);
-      });
+    
+    // Stop current stream tracks first if different
+    if (videoEl.srcObject && videoEl.srcObject !== stream) {
+      if (videoEl.srcObject.getTracks) {
+        videoEl.srcObject.getTracks().forEach(track => {
+          // Don't stop if it's our local stream (we manage that ourselves)
+          if (track !== myStreamRef.current?.getTracks()[0]) {
+            // track.stop(); // Don't stop remote tracks
+          }
+        });
+      }
+    }
+    
+    // Assign new stream
+    videoEl.srcObject = stream;
+    
+    // Ensure autoplay is enabled
+    videoEl.autoplay = true;
+    videoEl.playsinline = true;
+    
+    // Attempt to play
+    if (typeof videoEl.play === 'function') {
+      const playPromise = videoEl.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch((err) => {
+          if (err?.name !== 'NotAllowedError' && err?.name !== 'NotSupportedError') {
+            console.warn('Video play warning:', err?.message || err);
+          }
+        });
+      }
     }
   };
 
@@ -295,12 +320,19 @@ function App() {
     if (!selectedUser || !socket) return;
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
     } catch {
       alert('Camera/microphone permission denied. Please allow access in your browser and try again.');
       return;
     }
     try {
+      // Ensure audio tracks are enabled for transmission
+      stream.getAudioTracks().forEach(track => { track.enabled = true; });
+      stream.getVideoTracks().forEach(track => { track.enabled = true; });
+      
       myStreamRef.current = stream;
       setCallState('calling');
       attachStreamToVideo(myVideoRef.current, stream, true);
@@ -328,13 +360,20 @@ function App() {
     if (!incomingCall || !socket) return;
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
     } catch {
       alert('Camera/microphone permission denied. Please allow access in your browser and try again.');
       endCall(false);
       return;
     }
     try {
+      // Ensure audio tracks are enabled for transmission
+      stream.getAudioTracks().forEach(track => { track.enabled = true; });
+      stream.getVideoTracks().forEach(track => { track.enabled = true; });
+      
       myStreamRef.current = stream;
       setSelectedUser(incomingCall.from);
       attachStreamToVideo(myVideoRef.current, stream, true);
@@ -389,24 +428,45 @@ function App() {
 
     const beep = () => {
       try {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 700;
-        osc.type = 'sine';
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 0.04);
-        gain.gain.setValueAtTime(0.9, ctx.currentTime + 0.2);
-        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.5);
+        const now = ctx.currentTime;
+        
+        // Primary tone: 480Hz - standard phone ringtone frequency
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.frequency.value = 480;
+        osc1.type = 'sine';
+        
+        // Secondary tone: 640Hz for richer sound
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.frequency.value = 640;
+        osc2.type = 'sine';
+        
+        // Set maximum gain for loudness
+        gain1.gain.setValueAtTime(0, now);
+        gain1.gain.linearRampToValueAtTime(1.0, now + 0.03);
+        gain1.gain.setValueAtTime(1.0, now + 0.2);
+        gain1.gain.linearRampToValueAtTime(0, now + 0.5);
+        
+        gain2.gain.setValueAtTime(0, now);
+        gain2.gain.linearRampToValueAtTime(0.8, now + 0.03);
+        gain2.gain.setValueAtTime(0.8, now + 0.2);
+        gain2.gain.linearRampToValueAtTime(0, now + 0.5);
+        
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.5);
+        osc2.stop(now + 0.5);
       } catch {
         // Ignore ringtone playback issues on unsupported browsers
       }
     };
     beep();
-    ringIntervalRef.current = setInterval(beep, 1200);
+    ringIntervalRef.current = setInterval(beep, 1000);
   };
 
   const stopRingTone = () => {
@@ -433,12 +493,17 @@ function App() {
   // Set video srcObjects after the video elements are rendered
   useEffect(() => {
     if (callState === 'in-call') {
-      if (myVideoRef.current && myStreamRef.current) {
-        attachStreamToVideo(myVideoRef.current, myStreamRef.current, true);
-      }
-      if (remoteVideoRef.current && remoteStreamRef.current) {
-        attachStreamToVideo(remoteVideoRef.current, remoteStreamRef.current, false);
-      }
+      // Small delay to ensure video elements are ready in DOM
+      const timer = setTimeout(() => {
+        if (myVideoRef.current && myStreamRef.current) {
+          attachStreamToVideo(myVideoRef.current, myStreamRef.current, true);
+        }
+        if (remoteVideoRef.current && remoteStreamRef.current) {
+          attachStreamToVideo(remoteVideoRef.current, remoteStreamRef.current, false);
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
   }, [callState]);
 
